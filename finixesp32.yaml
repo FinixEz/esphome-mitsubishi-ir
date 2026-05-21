@@ -1,0 +1,140 @@
+esphome:
+  name: finixesp32
+  friendly_name: FinixEsp32
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  networks:
+    - ssid: "iot_thing"
+      password: "12345678"
+      hidden: true
+  ap:
+    ssid: "FinixEsp32-Fallback"
+    password: "finixesp32"
+
+captive_portal:
+
+output:
+  - platform: gpio
+    pin: GPIO2
+    id: red_led
+
+light:
+  - platform: binary
+    name: "Blue LED"
+    output: red_led
+
+sensor:
+  - platform: dht
+    pin: GPIO4
+    model: AM2302
+    temperature:
+      name: "Temperature"
+    humidity:
+      name: "Humidity"
+    update_interval: 30s
+
+remote_transmitter:
+  id: ir_tx
+  pin: GPIO18
+  carrier_duty_percent: 33%
+  non_blocking: false
+  rmt_symbols: 192
+
+remote_receiver:
+  pin:
+    number: GPIO19
+    inverted: true
+  dump: []
+  rmt_symbols: 256
+
+globals:
+  - id: ac_temp
+    type: int
+    restore_value: true
+    initial_value: '26'
+
+script:
+  - id: ac_on_frame
+    then:
+      - remote_transmitter.transmit_aeha:
+          address: 0xC4D3
+          data: !lambda |-
+            auto br = [](uint8_t v) -> uint8_t {
+              v = (v & 0xF0) >> 4 | (v & 0x0F) << 4;
+              v = (v & 0xCC) >> 2 | (v & 0x33) << 2;
+              v = (v & 0xAA) >> 1 | (v & 0x55) << 1;
+              return v;
+            };
+            int t = id(ac_temp);
+            uint8_t b5 = br(t - 16);
+            uint8_t cs = br((t - 16) + 0xC5);
+            return {0x64,0x80,0x00,0x04,0x18,b5,0x6C,0x42,
+                    0x00,0x00,0x00,0x00,0x00,0x00,0x00,cs};
+
+  - id: ac_off_frame
+    then:
+      - remote_transmitter.transmit_aeha:
+          address: 0xC4D3
+          data: !lambda |-
+            auto br = [](uint8_t v) -> uint8_t {
+              v = (v & 0xF0) >> 4 | (v & 0x0F) << 4;
+              v = (v & 0xCC) >> 2 | (v & 0x33) << 2;
+              v = (v & 0xAA) >> 1 | (v & 0x55) << 1;
+              return v;
+            };
+            int t = id(ac_temp);
+            uint8_t b5 = br(t - 16);
+            uint8_t cs = br((t - 16) + 0xA5);
+            return {0x64,0x80,0x00,0x00,0x18,b5,0x6C,0x42,
+                    0x00,0x00,0x00,0x00,0x00,0x00,0x00,cs};
+
+switch:
+  - platform: template
+    name: "Air Conditioner"
+    id: ac_switch
+    icon: "mdi:air-conditioner"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - script.execute: ac_on_frame
+      - delay: 50ms
+      - script.execute: ac_on_frame
+    turn_off_action:
+      - script.execute: ac_off_frame
+      - delay: 50ms
+      - script.execute: ac_off_frame
+
+number:
+  - platform: template
+    name: "AC Temperature"
+    id: ac_temperature_number
+    min_value: 16
+    max_value: 30
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 26
+    icon: "mdi:thermometer"
+    set_action:
+      - globals.set:
+          id: ac_temp
+          value: !lambda 'return (int)x;'
+      - if:
+          condition:
+            switch.is_on: ac_switch
+          then:
+            - script.execute: ac_on_frame
+            - delay: 50ms
+            - script.execute: ac_on_frame

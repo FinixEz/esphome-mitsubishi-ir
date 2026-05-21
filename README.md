@@ -2,6 +2,8 @@
 
 ESP32 IR remote controller for Mitsubishi MH12A AC via ESPHome and Home Assistant.
 
+![Hardware setup](hardware.jpg)
+
 ## Hardware
 
 | Component | GPIO |
@@ -44,7 +46,7 @@ Each command is sent **twice** with a 50ms gap (AC requirement).
 
 If the AC stops responding (e.g. after changing fan speed on the physical remote):
 
-1. Temporarily set `dump: aeha` in `remote_receiver` in `finixesp32.yaml`
+1. Temporarily set `dump: aeha` in `remote_receiver` in `mitsubishi-mh12a.yaml`
 2. Flash the device
 3. Point the physical remote at GPIO19 and press buttons
 4. Read the new `byte[5]` and checksum values from the ESPHome log

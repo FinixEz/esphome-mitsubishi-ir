@@ -52,8 +52,37 @@ If the AC stops responding (e.g. after changing fan speed on the physical remote
 4. Read the new `byte[5]` and checksum values from the ESPHome log
 5. Restore `dump: []` and reflash
 
-## Requirements
+## Setup
+
+### Requirements
 
 - [ESPHome](https://esphome.io/) 2024+
-- Home Assistant
+- Home Assistant with ESPHome integration
 - ESP32 dev board
+
+### Wiring
+
+Wire up the components to the GPIOs listed in the Hardware table above. The IR transmitter LED connects through a current-limiting resistor (~100Ω) to GPIO18. The VS1838B receiver signal pin goes to GPIO19 (module handles its own pull-up).
+
+### Installation
+
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/FinixEz/esphome-mitsubishi-ir.git
+   cd esphome-mitsubishi-ir
+   ```
+
+2. **Create your secrets file**
+   ```bash
+   cp secrets.yaml.example secrets.yaml
+   ```
+   Edit `secrets.yaml` and fill in your WiFi credentials.
+
+3. **Flash the ESP32**
+   ```bash
+   esphome run mitsubishi-mh12a.yaml
+   ```
+   Connect the ESP32 via USB for the first flash. After that, OTA updates work over WiFi.
+
+4. **Add to Home Assistant**
+   Go to **Settings → Devices & Services → Add Integration → ESPHome** and enter the device IP or hostname (`mitsubishi-ac.local`). The AC switch, temperature slider, and sensors will appear automatically.
